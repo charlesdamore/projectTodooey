@@ -7,63 +7,65 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
     
+    var itemArray = [Item]()
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
-    
-    var itemArray = ["Find Mike", "Buy eggos", "Destroy Demogorgon"]
-    
-    let defaults = UserDefaults.standard
-
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        tableView.dataSource = self
-        tableView.delegate = self
+        print("Data file path: \(dataFilePath?.absoluteString ?? "No file path")")
         
-        if let items = defaults.array(forKey: "TodoListArray") as? [String] {
-            itemArray = items
-        }
+//        loadItems()
         
     }
+    
     
     //MARK: - Tableview Datasource Methods
     
     override func tableView(_ UITableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        
         return itemArray.count
         
-        
     }
+    
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
-                return cell
+        
+        let item = itemArray[indexPath.row]
+        
+        cell.textLabel?.text = item.title
+        
+        //Ternary Operator ==>
+        //value = condion ? valueIfTrue : valueIfFalse
+        // set the cells accesory type if the item. done is true
+        // if not set it to false
+        
+        cell.accessoryType = item.done == true ? .checkmark : .none
+        
+        return cell
         
     }
-    
     
     
     //MARK: - TableView Delegate Methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        let itemName = itemArray[indexPath.row]
+        //allows the user to check the item and uncheck the item
         
-        // if selected item is checked, uncheck
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-            print("Unchecked \(itemName)")
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-            print("Checked \(itemName)")
-        }
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done // can be cutdown using the ! as it is a boolean
+        
+        saveItems()
         
         tableView.deselectRow(at: indexPath, animated: true)
-        
         
     }
     
@@ -73,43 +75,59 @@ class TodoListViewController: UITableViewController {
         
         var textField = UITextField()
         
-        
         let alert = UIAlertController(title: "Add new Todoey Item", message: "", preferredStyle: .alert)
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             
             //what will happen once the user clicks the Add Item on our UIAlert
-            if let text = textField.text {
-                let capitalizedText = text.capitalized //makes sure that entries are uniform
-                self.itemArray.append(capitalizedText) //appends to the itemArray
-                print("data appended")
-                
-                //reloads the rows and sections in the tableview
-                self.tableView.reloadData()
-                
-                //adds new entries to the user defaults
-                self.defaults.set(self.itemArray, forKey: "TodoListArray")
-                
-                print("data reloaded")
-            }
+            
+            let newItem = Item(context: self.context)
+            newItem.title = textField.text!
+            newItem.done = false // setting it to not done
+            self.itemArray.append(newItem)
+            print("data appended")
+            
+            self.saveItems()
+            
         }
-
         
         alert.addTextField { (alertTextField) in
             alertTextField.placeholder = "Create new item"
             textField = alertTextField
             
-            
         }
         
         alert.addAction(action)
-        
         present(alert, animated: true, completion: nil)
-    
         print("Prompt successful")
     }
     
-  
-   }
+    //Function to save items to the plist file
+    func saveItems() {
+        
+        do {
+            try context.save()
+        } catch {
+            print("Error saving context, \(error)")
+        }
+        
+        //Reloading the table view to reflect changes
+        self.tableView.reloadData()
+        
+        print("data reloaded")
+        
+    }
     
+//    func loadItems() {
+//        if let data = try? Data(contentsOf: dataFilePath!) {
+//            let decoder = PropertyListDecoder()
+//            do {
+//                itemArray = try decoder.decode([Item].self, from: data)
+//            } catch {
+//                print("Error decoding item array, \(error)")
+//            }
+//        }
+//    }
+    
+}
 
